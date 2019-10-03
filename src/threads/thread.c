@@ -29,6 +29,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+//My code start
+static struct list sleep_list;
+//My code end
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -94,7 +98,9 @@ void thread_init(void)
   lock_init(&tid_lock);
   list_init(&ready_list);
   list_init(&all_list);
-
+  //My code start
+  list_init(&sleep_list);
+  //My code end
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread();
   init_thread(initial_thread, "main", PRI_DEFAULT);
@@ -237,6 +243,48 @@ void thread_unblock(struct thread *t)
   t->status = THREAD_READY;
   intr_set_level(old_level);
 }
+
+//My code start
+void thread_set_sleep_time(int64_t ticks)
+{
+  thread_current()->sleep_time = timer_ticks() + ticks;
+}
+
+int64_t
+thread_get_sleep_time(void)
+{
+  return thread_current()->sleep_time;
+}
+
+void thread_wake(int64_t ticks)
+{
+  struct list_elem *e;
+
+  for (e = list_begin(&sleep_list); e != list_end(&sleep_list);)
+  {
+    struct thread *t = list_entry(e, struct thread, elem);
+    struct next_list_elem *n = list_next(e);
+
+    if (ticks >= t->sleep_time)
+    {
+      e = list_remove(&t->elem);
+      thread_unblock(t);
+    }
+
+    e = n;
+  }
+}
+
+void thread_sleep(int64_t ticks)
+{
+  struct thread *current = thread_current();
+  ASSERT(current != idle_thread);
+  thread_set_sleep_time(ticks);
+  list_push_back(&sleep_list, &current->elem);
+  thread_block();
+}
+
+//My code end
 
 /* Returns the name of the running thread. */
 const char *

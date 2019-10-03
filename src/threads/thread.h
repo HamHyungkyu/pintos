@@ -102,6 +102,9 @@ struct thread
 
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
+
+  //My code
+  int64_t sleep_time;
 };
 
 /* If false (default), use round-robin scheduler.
@@ -139,5 +142,12 @@ int thread_get_nice(void);
 void thread_set_nice(int);
 int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
+
+//My code start
+void thread_set_sleep_time(int64_t ticks);
+int64_t thread_get_sleep_time(void);
+void thread_sleep(int64_t ticks);
+void thread_wake(int64_t ticks);
+//My code end
 
 #endif /* threads/thread.h */
