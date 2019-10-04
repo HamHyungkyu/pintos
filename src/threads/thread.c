@@ -64,7 +64,7 @@ static unsigned thread_ticks; /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
-static int current_load_avg; /* Thread load average */
+int load_avg; /* Thread load average */
 
 static void kernel_thread(thread_func *, void *aux);
 
@@ -117,6 +117,7 @@ void thread_start(void)
   sema_init(&idle_started, 0);
   thread_create("idle", PRI_MIN, idle, &idle_started);
 
+  load_avg = 0;
   /* Start preemptive thread scheduling. */
   intr_enable();
 
@@ -386,6 +387,10 @@ bool thread_compare_priority(const struct list_elem *a, const struct list_elem *
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
+  if(thread_mlfqs){
+    return;
+  }
+
   thread_current()->priority = new_priority;
   thread_current()->origin_priority = new_priority;
   struct list_elem *max_ready = list_max(&ready_list, &thread_compare_priority, NULL);
@@ -403,8 +408,8 @@ int thread_get_priority(void)
 void thread_set_nice(int nice)
 {
   struct thread *current = thread_current();
+  mlfqs_thread_priority(thread_current());
   current->nice = nice;
-  current->priority = PRI_MAX - thread_get_recent_cpu() / 4 - nice * 2;
 }
 
 /* Returns the current thread's nice value. */
@@ -416,29 +421,74 @@ int thread_get_nice(void)
 /* Returns 100 times the system load average. */
 int thread_get_load_avg(void)
 {
-  struct thread *current = thread_current();
-  int load_avg = add_fp_and_fp(
-      mult_fp_and_fp(div_fp_by_int(convert_to_fp(59), 60), convert_to_fp(current_load_avg)),
-      mult_fp_and_int((div_fp_by_int(convert_to_fp(1), 60)), list_size(&ready_list)));
-  load_avg = convert_to_int_rounding_toward_nearest(load_avg);
-  current_load_avg = load_avg;
-  return load_avg;
+  return convert_to_int_rounding_toward_nearest(mult_fp_and_int(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
+  return convert_to_int_rounding_toward_nearest(mult_fp_and_int(thread_current()->recent_cpu, 100));
+}
+
+//MLFQS
+void mlfqs_thread_load_avg(void)
+{
   struct thread *current = thread_current();
-  int load_avg = convert_to_fp(thread_get_load_avg());
-  int recent_cpu_before = convert_to_fp(current->recent_cpu);
-  int recent_cpu = mult_fp_and_fp(
-      div_fp_by_fp(
-          mult_fp_and_int(load_avg, 2),
-          mult_fp_and_int(add_fp_and_int(load_avg, 1), 2)),
-      add_fp_and_int(recent_cpu_before, thread_get_nice())); /* recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice. */
-  recent_cpu = convert_to_int_rounding_toward_nearest(recent_cpu);
-  current->recent_cpu = recent_cpu;
-  return recent_cpu;
+  int ready_list_size = list_size(&ready_list);
+  
+  if(current != idle_thread){
+    ready_list_size++;
+  }
+
+  load_avg = add_fp_and_fp(mult_fp_and_fp(div_fp_by_int(convert_to_fp(59), 60), load_avg),
+                           div_fp_by_int(convert_to_fp(ready_list_size), 60));
+}
+
+void mlfqs_thread_priority(struct thread *t)
+{
+  if(t != idle_thread){
+    int fpPriority = sub_int_form_fp(sub_fp_and_fp(convert_to_fp(PRI_MAX), div_fp_by_int(t->recent_cpu, 4)), t->nice * 2);
+    t->priority = convert_to_int_rounding_toward_zero(fpPriority);
+
+    if(t->priority < PRI_MIN){
+      t->priority = PRI_MIN;
+    }
+    else if(t->priority > PRI_MAX){
+      t->priority = PRI_MAX;
+    }
+  }
+}
+
+void mlfqs_thread_recent_cpu(struct thread *t)
+{
+  if(t != idle_thread){
+    int temp = mult_fp_and_fp(div_fp_by_fp(mult_fp_and_int(load_avg, 2), add_fp_and_int(mult_fp_and_int(load_avg, 2), 1)), t->recent_cpu);
+    int recent_cpu = add_fp_and_int(temp, t->nice);
+    t->recent_cpu = recent_cpu;
+  }
+}
+
+void mlfqs_thread_refresh(void)
+{
+  mlfqs_thread_load_avg();
+
+  struct list_elem *e;
+
+  for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e))
+  {
+    struct thread *t = list_entry(e, struct thread, allelem);
+    mlfqs_thread_recent_cpu(t);
+    mlfqs_thread_priority(t);
+  }
+}
+
+void mlfqs_thread_recent_cpu_increment(void)
+{
+  struct thread *current = thread_current();
+  if(current != idle_thread)
+  {
+    current->recent_cpu = add_fp_and_int(current->recent_cpu, 1);
+  }
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

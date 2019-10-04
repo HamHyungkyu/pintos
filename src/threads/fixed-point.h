@@ -1,7 +1,7 @@
 #ifndef FIXED_POINT_H
 #define FIXED_POINT_H
 
-#define FIXED_POINT_FORMAT 1 << 14
+#define FIXED_POINT_FORMAT (1 << 14)
 
 /* Convert integer N to fixed point number */
 int convert_to_fp(int n) { return n * FIXED_POINT_FORMAT; }
@@ -12,7 +12,7 @@ int convert_to_int_rounding_toward_zero(int x) { return x / FIXED_POINT_FORMAT; 
 /* Convert fixed point x to integer rounding towrad nearest*/
 int convert_to_int_rounding_toward_nearest(int x)
 {
-    if (x > 0)
+    if (x >= 0)
     {
         return (x + FIXED_POINT_FORMAT / 2) / FIXED_POINT_FORMAT;
     }
