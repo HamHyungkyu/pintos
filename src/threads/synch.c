@@ -114,16 +114,16 @@ void sema_up(struct semaphore *sema)
   sema->max_priority = 0;
   if (!list_empty(&sema->waiters))
   {
-    sema->max_priority = list_entry(
-                             list_max(&sema->waiters, thread_compare_priority, NULL),
-                             struct thread, elem)
-                             ->priority;
-    thread_unblock(list_entry(list_pop_front(&sema->waiters),
-                              struct thread, elem));
+    struct thread *sema_next = list_entry(
+        list_max(&sema->waiters, thread_compare_priority, NULL),
+        struct thread, elem);
+    list_remove(&sema_next->elem);
+    sema->max_priority = sema_next->priority;
+    thread_unblock(sema_next);
   }
-
   sema->value++;
   intr_set_level(old_level);
+  thread_yield();
 }
 
 static void sema_test_helper(void *sema_);
