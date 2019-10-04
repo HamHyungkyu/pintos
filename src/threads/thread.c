@@ -174,6 +174,9 @@ tid_t thread_create(const char *name, int priority,
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
+  struct semaphore new_thread_started;
+  sema_init(&new_thread_started, 0);
+
   tid_t tid;
 
   ASSERT(function != NULL);
@@ -184,6 +187,7 @@ tid_t thread_create(const char *name, int priority,
     return TID_ERROR;
 
   /* Initialize thread. */
+
   init_thread(t, name, priority);
   tid = t->tid = allocate_tid();
 
@@ -204,7 +208,8 @@ tid_t thread_create(const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock(t);
-
+  if (priority > thread_get_priority())
+    thread_yield();
   return tid;
 }
 
@@ -239,7 +244,7 @@ void thread_unblock(struct thread *t)
 
   old_level = intr_disable();
   ASSERT(t->status == THREAD_BLOCKED);
-  list_insert_ordered(&ready_list, &t->elem, &thread_compare_priority, NULL);
+  list_push_back(&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level(old_level);
 }
@@ -349,7 +354,7 @@ void thread_yield(void)
 
   old_level = intr_disable();
   if (cur != idle_thread)
-    list_insert_ordered(&ready_list, &cur->elem, &thread_compare_priority, NULL);
+    list_push_back(&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule();
   intr_set_level(old_level);
@@ -374,13 +379,17 @@ void thread_foreach(thread_action_func *func, void *aux)
 /* Compare two thread list elemts. It returns if prioriy of a is bigger than b*/
 bool thread_compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
-  return list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority;
+  return list_entry(a, struct thread, elem)->priority < list_entry(b, struct thread, elem)->priority;
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
   thread_current()->priority = new_priority;
+  thread_current()->origin_priority = new_priority;
+  struct list_elem *max_ready = list_max(&ready_list, &thread_compare_priority, NULL);
+  if (new_priority <= list_entry(max_ready, struct thread, elem)->priority)
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -521,8 +530,12 @@ init_thread(struct thread *t, const char *name, int priority)
   strlcpy(t->name, name, sizeof t->name);
   t->stack = (uint8_t *)t + PGSIZE;
   t->priority = priority;
+  t->origin_priority = t->priority;
   t->magic = THREAD_MAGIC;
-
+  t->holder = NULL;
+  t->nice = 0;
+  t->recent_cpu = 0;
+  list_init(&t->locks);
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
   intr_set_level(old_level);
@@ -552,7 +565,11 @@ next_thread_to_run(void)
   if (list_empty(&ready_list))
     return idle_thread;
   else
-    return list_entry(list_pop_front(&ready_list), struct thread, elem);
+  {
+    struct list_elem *max_prioriry = list_max(&ready_list, &thread_compare_priority, NULL);
+    list_remove(max_prioriry);
+    return list_entry(max_prioriry, struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
