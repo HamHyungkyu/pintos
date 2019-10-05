@@ -200,7 +200,9 @@ void lock_acquire(struct lock *lock)
   ASSERT(!lock_held_by_current_thread(lock));
 
   thread_current()->holder = lock->holder;
-  lock_priority_donate(lock->holder);
+  if(!thread_mlfqs){
+    lock_priority_donate(lock->holder);
+  }
 
   sema_down(&lock->semaphore);
 
@@ -246,7 +248,9 @@ void lock_release(struct lock *lock)
 {
   ASSERT(lock != NULL);
   ASSERT(lock_held_by_current_thread(lock));
-  lock_priority_rollback(lock);
+  if(!thread_mlfqs){
+    lock_priority_rollback(lock);
+  }
   lock->holder = NULL;
   sema_up(&lock->semaphore);
 }

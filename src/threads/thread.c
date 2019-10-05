@@ -142,8 +142,9 @@ void thread_tick(void)
     kernel_ticks++;
 
   /* Enforce preemption. */
-  if (++thread_ticks >= TIME_SLICE)
+  if (++thread_ticks >= TIME_SLICE){
     intr_yield_on_return();
+  }
 }
 
 /* Prints thread statistics. */
@@ -408,8 +409,8 @@ int thread_get_priority(void)
 void thread_set_nice(int nice)
 {
   struct thread *current = thread_current();
-  mlfqs_thread_priority(thread_current());
   current->nice = nice;
+  mlfqs_thread_priority(current);
 }
 
 /* Returns the current thread's nice value. */

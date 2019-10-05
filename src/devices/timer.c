@@ -189,7 +189,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if(ticks % 100 == 0){
       mlfqs_thread_refresh();
     }
-    if(ticks % 4 == 0){
+    else if(ticks % 4 == 0){
       mlfqs_thread_priority(thread_current());
     }
   }
