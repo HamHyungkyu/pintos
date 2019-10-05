@@ -29,9 +29,7 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
-//My code start
 static struct list sleep_list;
-//My code end
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -98,9 +96,8 @@ void thread_init(void)
   lock_init(&tid_lock);
   list_init(&ready_list);
   list_init(&all_list);
-  //My code start
   list_init(&sleep_list);
-  //My code end
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread();
   init_thread(initial_thread, "main", PRI_DEFAULT);
@@ -252,7 +249,6 @@ void thread_unblock(struct thread *t)
   intr_set_level(old_level);
 }
 
-//My code start
 void thread_set_sleep_time(int64_t ticks)
 {
   thread_current()->sleep_time = timer_ticks() + ticks;
@@ -291,8 +287,6 @@ void thread_sleep(int64_t ticks)
   list_push_back(&sleep_list, &current->elem);
   thread_block();
 }
-
-//My code end
 
 /* Returns the name of the running thread. */
 const char *
