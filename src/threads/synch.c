@@ -342,7 +342,9 @@ bool sema_compare_priority(struct list_elem *a, struct list_elem *b, void *aux U
     return false;
   if (list_empty(&sema_b->semaphore.waiters))
     return true;
-  return thread_compare_priority(list_front(&sema_b->semaphore.waiters), list_front(&sema_a->semaphore.waiters), aux);
+  return thread_compare_priority(list_max(&sema_b->semaphore.waiters, thread_compare_priority, NULL), 
+  							     list_max(&sema_a->semaphore.waiters, thread_compare_priority, NULL),
+  							     aux);
 }
 
 void cond_wait(struct condition *cond, struct lock *lock)
