@@ -386,8 +386,16 @@ void thread_set_priority(int new_priority)
     return;
   }
 
-  thread_current()->priority = new_priority;
-  thread_current()->origin_priority = new_priority;
+  struct thread *t = thread_current();
+
+  if(list_empty(&t->locks) || t->priority < new_priority){
+    t->priority = new_priority;
+    t->origin_priority = new_priority;
+  }
+  else{
+    t->origin_priority = new_priority;
+  }
+
   struct list_elem *max_ready = list_max(&ready_list, &thread_compare_priority, NULL);
   if (new_priority <= list_entry(max_ready, struct thread, elem)->priority)
     thread_yield();
