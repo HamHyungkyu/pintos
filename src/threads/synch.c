@@ -267,9 +267,10 @@ void lock_priority_rollback(struct lock *lock)
   {
     struct lock *max = list_entry(
         list_max(&current->locks, &lock_compare_priority, NULL), struct lock, elem);
-    if (max->semaphore.max_priority > current->priority)
+    if (max->semaphore.max_priority < current->priority)
     {
-      current->priority = max->semaphore.max_priority;
+      max->semaphore.max_priority = current->priority;
+      //current->priority = max->semaphore.max_priority;
     }
   }
 }
