@@ -139,7 +139,8 @@ void thread_tick(void)
     kernel_ticks++;
 
   /* Enforce preemption. */
-  if (++thread_ticks >= TIME_SLICE){
+  if (++thread_ticks >= TIME_SLICE)
+  {
     intr_yield_on_return();
   }
 }
@@ -382,17 +383,20 @@ bool thread_compare_priority(const struct list_elem *a, const struct list_elem *
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-  if(thread_mlfqs){
+  if (thread_mlfqs)
+  {
     return;
   }
 
   struct thread *t = thread_current();
 
-  if(list_empty(&t->locks) || t->priority < new_priority){
+  if (list_empty(&t->locks) || t->priority < new_priority)
+  {
     t->priority = new_priority;
     t->origin_priority = new_priority;
   }
-  else{
+  else
+  {
     t->origin_priority = new_priority;
   }
 
@@ -438,8 +442,9 @@ void mlfqs_thread_load_avg(void)
 {
   struct thread *current = thread_current();
   int ready_list_size = list_size(&ready_list);
-  
-  if(current != idle_thread){
+
+  if (current != idle_thread)
+  {
     ready_list_size++;
   }
 
@@ -449,14 +454,17 @@ void mlfqs_thread_load_avg(void)
 
 void mlfqs_thread_priority(struct thread *t)
 {
-  if(t != idle_thread){
+  if (t != idle_thread)
+  {
     int fpPriority = sub_int_form_fp(sub_fp_and_fp(convert_to_fp(PRI_MAX), div_fp_by_int(t->recent_cpu, 4)), t->nice * 2);
     t->priority = convert_to_int_rounding_toward_zero(fpPriority);
 
-    if(t->priority < PRI_MIN){
+    if (t->priority < PRI_MIN)
+    {
       t->priority = PRI_MIN;
     }
-    else if(t->priority > PRI_MAX){
+    else if (t->priority > PRI_MAX)
+    {
       t->priority = PRI_MAX;
     }
   }
@@ -464,7 +472,8 @@ void mlfqs_thread_priority(struct thread *t)
 
 void mlfqs_thread_recent_cpu(struct thread *t)
 {
-  if(t != idle_thread){
+  if (t != idle_thread)
+  {
     int temp = mult_fp_and_fp(div_fp_by_fp(mult_fp_and_int(load_avg, 2), add_fp_and_int(mult_fp_and_int(load_avg, 2), 1)), t->recent_cpu);
     int recent_cpu = add_fp_and_int(temp, t->nice);
     t->recent_cpu = recent_cpu;
@@ -488,7 +497,7 @@ void mlfqs_thread_refresh(void)
 void mlfqs_thread_recent_cpu_increment(void)
 {
   struct thread *current = thread_current();
-  if(current != idle_thread)
+  if (current != idle_thread)
   {
     current->recent_cpu = add_fp_and_int(current->recent_cpu, 1);
   }
